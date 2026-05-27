@@ -99,6 +99,15 @@
     .sample-btn:hover { background: var(--bg2); color: var(--text); }
     .loading-dots::after { content: '.'; animation: dots 1.2s steps(3,end) infinite; }
     @keyframes dots { 0%,100%{content:'.'} 33%{content:'..'} 66%{content:'...'} }
+    .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.15s; margin-bottom: 10px; background: var(--bg2); }
+    .upload-zone:hover, .upload-zone.drag-over { border-color: var(--text2); background: var(--bg3); }
+    .upload-zone i { font-size: 28px; color: var(--text3); display: block; margin-bottom: 6px; }
+    .upload-zone p { font-size: 13px; color: var(--text2); margin-bottom: 4px; }
+    .upload-zone span { font-size: 11px; color: var(--text3); }
+    .file-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--success-bg); color: var(--success-text); border-radius: var(--radius); font-size: 12px; margin-bottom: 10px; }
+    .file-badge button { background: none; border: none; cursor: pointer; color: var(--success-text); font-size: 14px; line-height: 1; padding: 0; margin-left: 2px; }
+    .divider { display: flex; align-items: center; gap: 10px; margin: 10px 0; color: var(--text3); font-size: 12px; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 0.5px; background: var(--border); }
     .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
     .placeholder { text-align: center; padding: 3rem; color: var(--text3); }
     .placeholder i { font-size: 40px; display: block; margin-bottom: 12px; }
@@ -112,11 +121,13 @@
   </style>
 </head>
 <body>
+
 <header>
   <i class="ti ti-sparkles" style="font-size:20px" aria-hidden="true"></i>
   <h1>AI Data Cleaning Studio</h1>
   <p>Powered by Claude AI</p>
 </header>
+
 <main class="main">
   <div class="tabs">
     <button class="tab active" onclick="switchTab('input')"><i class="ti ti-upload" aria-hidden="true"></i> Input data</button>
@@ -124,6 +135,8 @@
     <button class="tab" onclick="switchTab('compare')"><i class="ti ti-arrows-diff" aria-hidden="true"></i> Before / after</button>
     <button class="tab" onclick="switchTab('schema')"><i class="ti ti-table" aria-hidden="true"></i> Clean schema</button>
   </div>
+
+  <!-- INPUT -->
   <div id="panel-input" class="panel active">
     <div class="card">
       <div class="row">
@@ -141,6 +154,7 @@
           </select>
         </div>
       </div>
+
       <div class="section-title" style="margin-bottom:8px">Load a sample dataset</div>
       <div class="sample-btns">
         <button class="sample-btn" onclick="loadSample('customers')">👤 Customers</button>
@@ -148,11 +162,28 @@
         <button class="sample-btn" onclick="loadSample('employees')">🏢 Employees</button>
         <button class="sample-btn" onclick="loadSample('inventory')">📦 Inventory</button>
       </div>
+
+      <!-- FILE UPLOAD -->
+      <div class="section-title" style="margin-bottom:8px">Upload a file</div>
+      <input type="file" id="file-input" accept=".csv,.tsv,.json,.xls,.xlsx" style="display:none" onchange="handleFileInput(event)" />
+      <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <i class="ti ti-file-upload"></i>
+        <p>Click to browse or drag &amp; drop a file here</p>
+        <span>Supports CSV, TSV, JSON, XLS, XLSX</span>
+      </div>
+      <div id="file-badge" style="display:none" class="file-badge">
+        <i class="ti ti-file-check"></i>
+        <span id="file-badge-name"></span>
+        <button onclick="clearFile()" title="Remove file">u2715</button>
+      </div>
+      <div class="divider">or paste data manually</div>
       <div class="field" style="margin-bottom:14px">
         <label>Paste raw / dirty data</label>
-        <textarea id="raw-data" placeholder="Paste your CSV, JSON, or messy data here…"></textarea>
+        <textarea id="raw-data" placeholder="Paste your CSV, JSON, or messy data hereu2026"></textarea>
       </div>
+
       <div id="status-input" class="status"></div>
+
       <div class="actions">
         <button class="btn btn-primary" id="btn-analyze" onclick="runAnalysis()">
           <i class="ti ti-wand" aria-hidden="true"></i> Analyze &amp; clean with AI
@@ -161,6 +192,8 @@
       </div>
     </div>
   </div>
+
+  <!-- ANALYSIS -->
   <div id="panel-analysis" class="panel">
     <div id="analysis-placeholder" class="placeholder card">
       <i class="ti ti-chart-dots"></i>
@@ -175,6 +208,8 @@
       </div>
     </div>
   </div>
+
+  <!-- COMPARE -->
   <div id="panel-compare" class="panel">
     <div id="compare-placeholder" class="placeholder card">
       <i class="ti ti-arrows-diff"></i>
@@ -197,6 +232,8 @@
       </div>
     </div>
   </div>
+
+  <!-- SCHEMA -->
   <div id="panel-schema" class="panel">
     <div id="schema-placeholder" class="placeholder card">
       <i class="ti ti-table"></i>
@@ -207,7 +244,11 @@
         <table class="schema-table">
           <thead>
             <tr>
-              <th>Column</th><th>Original name(s)</th><th>Type</th><th>Transformations</th><th>Sample values</th>
+              <th>Column</th>
+              <th>Original name(s)</th>
+              <th>Type</th>
+              <th>Transformations</th>
+              <th>Sample values</th>
             </tr>
           </thead>
           <tbody id="schema-body"></tbody>
@@ -220,7 +261,98 @@
     </div>
   </div>
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
+// ── FILE UPLOAD HANDLERS ──────────────────────────────────────────────────────
+
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag-over');
+}
+function onDragLeave() {
+  document.getElementById('upload-zone').classList.remove('drag-over');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+}
+function handleFileInput(e) {
+  const file = e.target.files[0];
+  if (file) readFile(file);
+}
+function clearFile() {
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-badge').style.display = 'none';
+  document.getElementById('raw-data').value = '';
+  document.getElementById('status-input').className = 'status';
+}
+
+function readFile(file) {
+  const name = file.name;
+  const ext = name.split('.').pop().toLowerCase();
+
+  // Auto-set dataset name from filename
+  document.getElementById('ds-name').value = name.replace(/\.[^.]+$/, '');
+
+  const reader = new FileReader();
+
+  if (ext === 'csv' || ext === 'tsv') {
+    document.getElementById('ds-format').value = ext === 'tsv' ? 'tsv' : 'csv';
+    reader.onload = (e) => {
+      document.getElementById('raw-data').value = e.target.result;
+      showFileBadge(name);
+      setStatus('input','info',`"${name}" loaded (${formatBytes(file.size)}) — click Analyze & clean with AI.`);
+    };
+    reader.readAsText(file);
+
+  } else if (ext === 'json') {
+    document.getElementById('ds-format').value = 'json';
+    reader.onload = (e) => {
+      document.getElementById('raw-data').value = e.target.result;
+      showFileBadge(name);
+      setStatus('input','info',`"${name}" loaded (${formatBytes(file.size)}) — click Analyze & clean with AI.`);
+    };
+    reader.readAsText(file);
+
+  } else if (ext === 'xls' || ext === 'xlsx') {
+    document.getElementById('ds-format').value = 'csv';
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        // Use first sheet
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const csv = XLSX.utils.sheet_to_csv(sheet);
+        document.getElementById('raw-data').value = csv;
+        showFileBadge(`${name} → sheet: ${sheetName}`);
+        setStatus('input','info',`"${name}" loaded (sheet: "${sheetName}", ${formatBytes(file.size)}) — click Analyze & clean with AI.`);
+      } catch(err) {
+        setStatus('input','error','Failed to read Excel file: ' + err.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+
+  } else {
+    setStatus('input','error',`Unsupported file type ".${ext}". Please use CSV, TSV, JSON, XLS, or XLSX.`);
+  }
+}
+
+function showFileBadge(name) {
+  document.getElementById('file-badge-name').textContent = name;
+  document.getElementById('file-badge').style.display = 'inline-flex';
+}
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+
+// ── SAMPLES & APP ─────────────────────────────────────────────────────────────
+
 const SAMPLES = {
   customers: { name:'customer_records', format:'csv', data:`ID,Name,Email,Phone,DOB,City,Revenue
 1,john doe ,john.doe@gmail.com,555-1234,1985-03-12,new york,$1200.00
@@ -259,7 +391,9 @@ SKU-006,Gadget Plus,Electronics,null,10,N/A,16.99,February 2024
 SKU-007,Mega Widget,Electronics,50,10,15.00,24.99,2024-02-10
 SKU-001,Widget Pro,Electronics,155,20,12.50,19.99,2024-02-15` }
 };
+
 let analysisResult = null;
+
 function loadSample(k) {
   const s = SAMPLES[k];
   document.getElementById('ds-name').value = s.name;
@@ -285,6 +419,7 @@ function clearAll() {
   document.getElementById('status-input').className = 'status';
   analysisResult = null;
 }
+
 async function runAnalysis() {
   const raw = document.getElementById('raw-data').value.trim();
   if (!raw) { setStatus('input','error','Please paste some data first.'); return; }
@@ -294,7 +429,23 @@ async function runAnalysis() {
   btn.disabled = true;
   btn.innerHTML = '<i class="ti ti-loader-2" aria-hidden="true"></i> Analyzing<span class="loading-dots"></span>';
   setStatus('input','info','AI is analyzing your data and predicting all cleaning operations…');
-  const prompt = `You are an expert data engineer. Analyze this dirty ${format} dataset named "${name}" and return ONLY a valid JSON object — no markdown, no backticks, no preamble.\n\nDATASET:\n${raw.slice(0,3000)}\n\nReturn this exact JSON:\n{\n  "metrics": { "total_rows": <n>, "total_cols": <n>, "issues_found": <n>, "quality_score": <0-100> },\n  "operations": [{ "type": "standardize_case|fix_email|fix_phone|fix_date|fix_currency|remove_duplicate|fill_missing|trim_whitespace|fix_negative|fix_type|normalize_category|remove_invalid|rename_column|deduplicate_rows", "column": "<name>", "description": "<what was found and fixed>", "severity": "error|warning|info", "affected_rows": <n> }],\n  "schema": [{ "clean_name": "<snake_case>", "original_names": ["<orig>"], "type": "text|integer|decimal|date|boolean|email|phone", "transformations": ["<list>"], "sample_values": ["<2-3 clean values>"] }],\n  "dirty_rows": [["<first 6 rows raw values>"]],\n  "clean_rows": [["<same 6 rows cleaned>"]],\n  "headers_dirty": ["<original headers>"],\n  "headers_clean": ["<clean headers>"]\n}`;
+
+  const prompt = `You are an expert data engineer. Analyze this dirty ${format} dataset named "${name}" and return ONLY a valid JSON object — no markdown, no backticks, no preamble.
+
+DATASET:
+${raw.slice(0,3000)}
+
+Return this exact JSON:
+{
+  "metrics": { "total_rows": <n>, "total_cols": <n>, "issues_found": <n>, "quality_score": <0-100> },
+  "operations": [{ "type": "standardize_case|fix_email|fix_phone|fix_date|fix_currency|remove_duplicate|fill_missing|trim_whitespace|fix_negative|fix_type|normalize_category|remove_invalid|rename_column|deduplicate_rows", "column": "<name>", "description": "<what was found and fixed>", "severity": "error|warning|info", "affected_rows": <n> }],
+  "schema": [{ "clean_name": "<snake_case>", "original_names": ["<orig>"], "type": "text|integer|decimal|date|boolean|email|phone", "transformations": ["<list>"], "sample_values": ["<2-3 clean values>"] }],
+  "dirty_rows": [["<first 6 rows raw values>"]],
+  "clean_rows": [["<same 6 rows cleaned>"]],
+  "headers_dirty": ["<original headers>"],
+  "headers_clean": ["<clean headers>"]
+}`;
+
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
@@ -314,6 +465,7 @@ async function runAnalysis() {
     btn.innerHTML = '<i class="ti ti-wand" aria-hidden="true"></i> Analyze &amp; clean with AI';
   }
 }
+
 function renderResults(r) {
   const m = r.metrics || {};
   const quality = Math.max(0, Math.min(100, m.quality_score || 0));
@@ -338,6 +490,7 @@ function renderResults(r) {
   renderCompare(r);
   renderSchema(r);
 }
+
 function renderCompare(r) {
   document.getElementById('compare-placeholder').style.display = 'none';
   document.getElementById('compare-content').style.display = 'block';
@@ -358,6 +511,7 @@ function renderCompare(r) {
   const changed=rc.filter((row,i)=>rd[i]&&row.join('|')!==rd[i].join('|')).length;
   setStatus('compare','success',`${changed} of ${rc.length} shown rows were modified. Download for the full dataset.`);
 }
+
 function renderSchema(r) {
   document.getElementById('schema-placeholder').style.display='none';
   document.getElementById('schema-content').style.display='block';
@@ -373,6 +527,7 @@ function renderSchema(r) {
   const name=document.getElementById('ds-name').value||'clean_table';
   document.getElementById('sql-out').textContent=`CREATE TABLE ${name} (\n`+(r.schema||[]).map(c=>`  ${c.clean_name.padEnd(28)}${t[c.type]||'TEXT'}`).join(',\n')+'\n);';
 }
+
 function downloadClean() {
   if (!analysisResult) return;
   const h=analysisResult.headers_clean||[], rows=analysisResult.clean_rows||[];
@@ -382,6 +537,8 @@ function downloadClean() {
   a.download=(document.getElementById('ds-name').value||'clean')+'_cleaned.csv';
   a.click();
 }
+
+// init
 document.querySelectorAll('.panel').forEach(p=>{ if(!p.classList.contains('active')) p.style.display='none'; });
 </script>
 </body>
